@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
 import {
   computeVerdict,
+  MDR_THRESHOLD,
+  istDateKey,
+  MDR_CAP,
   countIndian,
   groupDigits,
   daysUntilEffective,
@@ -9,6 +12,7 @@ import {
   merchantOutlook,
   parseAmount,
   parseKind,
+  pctShare,
 } from "./rules";
 
 test("P2P is free at any amount", () => {
@@ -139,8 +143,15 @@ test("no GST line is shown when no fee applies", () => {
 test("caveats are attached where the source is open-ended", () => {
   // NPCI says "among others", so the flat-fee list must not read as closed.
   expect(computeVerdict("shop", "fuel", 3_000).notes.join(" ")).toContain("among others");
-  // The FAQ states no floor for capital markets.
-  expect(computeVerdict("shop", "capital", 50_000).notes.join(" ")).toContain("does not state");
+  /*
+   * The cap unit IS stated: the announcement reads "capped at 300 per
+   * transaction". What no source states is a floor for this category, so that
+   * is the only thing left to hedge.
+   */
+  const capital = computeVerdict("shop", "capital", 50_000).notes.join(" ");
+  expect(capital).toContain("per transaction");
+  expect(capital).toContain("no \u20B92,000 floor");
+  expect(capital).not.toContain("nor what the cap is per");
   // Mandates are exempt outright.
   expect(computeVerdict("shop", "big", 5_000).notes.join(" ")).toContain("AutoPay");
   // Nothing to caveat when nobody pays anything.
@@ -231,4 +242,174 @@ test("counts group without a rupee sign", () => {
   expect(countIndian(71)).toBe("71");
   expect(countIndian(12_431)).toBe("12,431");
   expect(countIndian(2_50_000)).toBe("2,50,000");
+});
+
+test("pass-through is the sourced fee, and only where there is one", () => {
+  // The fee itself is in NPCI's FAQ. GST on it is not, so it is excluded here.
+  expect(computeVerdict("shop", "big", 2_800).passThrough).toBeCloseTo(11.2, 6);
+  expect(computeVerdict("shop", "fuel", 3_000).passThrough).toBe(5);
+
+  // Nothing is charged, so there is nothing that could reach a price tag.
+  expect(computeVerdict("person", "na", 50_000).passThrough).toBeNull();
+  expect(computeVerdict("shop", "small", 9_000).passThrough).toBeNull();
+  expect(computeVerdict("shop", "big", 2_000).passThrough).toBeNull();
+});
+
+test("the shop side shows what recovering the fee would take", () => {
+  const o = merchantOutlook(2_50_000, 3_500, "big", 0.4);
+  // 0.4% of the qualifying 1,00,000 is 400, plus expected GST is 472.
+  expect(o.monthlyTotal).toBeCloseTo(472, 6);
+  // Spread over all revenue, not just the qualifying part.
+  expect(o.priceRiseShare).toBeCloseTo(472 / 2_50_000, 6);
+  // A uniform rise of that share puts this much on one qualifying bill.
+  expect(o.perBillRecovery).toBeCloseTo((472 / 2_50_000) * 3_500, 6);
+
+  // Nothing to recover when nothing is charged.
+  const free = merchantOutlook(60_000, 800, "big", 0.5);
+  expect(free.priceRiseShare).toBe(0);
+  expect(free.perBillRecovery).toBe(0);
+});
+
+test("small shares are not printed with fake precision", () => {
+  expect(pctShare(0)).toBe("0%");
+  expect(pctShare(0.00001)).toBe("under 0.01%");
+  // 0.0153% claimed four decimals the inputs cannot support.
+  expect(pctShare(0.0001534)).toBe("0.02%");
+  expect(pctShare(0.0019)).toBe("0.19%");
+  expect(pctShare(0.18)).toBe("18%");
+  expect(pctShare(0.015)).toBe("1.5%");
+});
+
+/* ---------------------------------------------------------------------- */
+/* Regressions found by an independent audit of the arithmetic.            */
+/* ---------------------------------------------------------------------- */
+
+test("the capped branch charges the remainder instead of dropping it", () => {
+  // 2,50,000 of qualifying value in 1,00,000 bills is two capped bills plus a
+  // 50,000 one: 300 + 300 + 200. Rounding the bill count gave 900.
+  expect(merchantOutlook(2_50_000, 1_00_000, "big", 1).monthlyMdr).toBeCloseTo(800, 6);
+
+  // At exactly 75,000 the cap equals 0.4%, so it reduces nothing and the plain
+  // percentage must apply. This previously returned 900.
+  expect(merchantOutlook(2_50_000, 75_000, "big", 1).monthlyMdr).toBeCloseTo(1_000, 6);
+  expect(merchantOutlook(2_50_000, 74_999, "big", 1).monthlyMdr).toBeCloseTo(1_000, 6);
+
+  // Worst case: less than one bill of qualifying value reported zero.
+  expect(merchantOutlook(2_50_000, 75_000, "big", 0.05).monthlyMdr).toBeCloseTo(50, 6);
+});
+
+test("a typed amount is never computed as something smaller than it displays", () => {
+  // The merchant fields take 9 digits, so the ceiling has to reach them.
+  expect(parseAmount("999999999", 999_999_999)).toBe(999_999_999);
+  expect(parseAmount("20000000", 999_999_999)).toBe(20_000_000);
+  // The payment field takes 8, and the default ceiling covers all of them.
+  expect(parseAmount("99999999")).toBe(99_999_999);
+  expect(parseAmount("2800")).toBe(2_800);
+});
+
+test("a fee is never rendered as NaN", () => {
+  expect(inr(NaN)).toBe("₹0");
+  expect(inr(Infinity)).toBe("₹0");
+  expect(inr(-Infinity)).toBe("₹0");
+});
+
+test("leading zeros do not survive grouping", () => {
+  expect(groupDigits("0001234")).toBe("1,234");
+  expect(groupDigits("0")).toBe("0");
+  expect(groupDigits("000")).toBe("0");
+});
+
+test("qualifying money always implies at least one bill carrying it", () => {
+  // Less than one bill of qualifying value is still one bill, not zero.
+  const o = merchantOutlook(1_00_001, 2_00_000, "big", 1);
+  expect(o.billsPerMonth).toBe(1);
+  expect(o.monthlyTotal).toBeGreaterThan(0);
+  expect(o.perBillRecovery).toBeGreaterThan(0);
+
+  // No qualifying money means no bills and nothing to recover.
+  const none = merchantOutlook(5_00_000, 3_000, "big", 0);
+  expect(none.billsPerMonth).toBe(0);
+  expect(none.perBillRecovery).toBe(0);
+  expect(none.monthlyTotal).toBe(0);
+});
+
+/* ------------------------------------------------------------------ */
+/* Fourth audit: conditional P2M, bill counting, and the capital floor */
+/* ------------------------------------------------------------------ */
+
+test("one month over the line is not yet P2M", () => {
+  const o = merchantOutlook(1_00_001, 3500, "big", 0.4);
+  // The money still computes, but nothing on the page may claim it applies now.
+  expect(o.conditional).toBe(true);
+  expect(o.statusPill).toBe("P2M after 3 months");
+  expect(o.statusLabel).toContain("3 consecutive months");
+  expect(o.note).toContain("3 straight months");
+});
+
+test("a small merchant is P2PM outright, with no condition attached", () => {
+  const o = merchantOutlook(1_00_000, 3500, "big", 0.4);
+  expect(o.conditional).toBe(false);
+  expect(o.statusPill).toBe("P2PM");
+  expect(o.monthlyTotal).toBe(0);
+});
+
+test("a qualifying bill is never larger than the qualifying money", () => {
+  // 5% of 1,50,000 is 7,500. A 75,000 bill cannot fit inside it.
+  const o = merchantOutlook(1_50_000, 75_000, "fuel", 0.05);
+  expect(o.qualifyingValue).toBe(7_500);
+  expect(o.qualifyingBills).toBe(1);
+  expect(o.qualifyingBills * o.qualifyingBillSize).toBeLessThanOrEqual(o.qualifyingValue);
+  expect(o.monthlyMdr).toBe(5); // one flat-fee transaction, not one per 75,000
+});
+
+test("the bill count never claims more money than the month holds", () => {
+  // 7,500 at 3,000 a bill is two bills and a 1,500 tail, not three bills.
+  const o = merchantOutlook(1_50_000, 3_000, "fuel", 0.05);
+  expect(o.qualifyingBills).toBe(2);
+  expect(o.monthlyMdr).toBe(10);
+  expect(o.qualifyingBills * o.qualifyingBillSize).toBeLessThanOrEqual(o.qualifyingValue);
+});
+
+test("a sub-threshold average bill cannot conjure a fee per 500 rupees", () => {
+  // A 500 average is nonsense for "bills above 2,000"; it must not be taken
+  // literally and multiplied out into 1,000 flat fees.
+  const o = merchantOutlook(5_00_000, 500, "fuel", 1);
+  expect(o.qualifyingBillSize).toBeGreaterThan(MDR_THRESHOLD);
+  expect(o.qualifyingBills * o.qualifyingBillSize).toBeLessThanOrEqual(o.qualifyingValue);
+  expect(o.monthlyMdr).toBe(o.qualifyingBills * 5);
+});
+
+test("qualifying value below the threshold buys no qualifying bills", () => {
+  const o = merchantOutlook(2_00_000, 5_000, "fuel", 0.0075); // 1,500
+  expect(o.qualifyingValue).toBe(1_500);
+  expect(o.qualifyingBills).toBe(0);
+  expect(o.monthlyMdr).toBe(0);
+});
+
+test("the 2,000 wink only fires where the floor is documented", () => {
+  expect(computeVerdict("shop", "big", 2000).wink).not.toBeNull();
+  expect(computeVerdict("shop", "fuel", 2000).wink).not.toBeNull();
+  // NPCI states no floor for capital markets, and P2P is free at any amount.
+  expect(computeVerdict("shop", "capital", 2000).wink).toBeNull();
+  expect(computeVerdict("person", "na", 2000).wink).toBeNull();
+  expect(computeVerdict("shop", "small", 2000).wink).toBeNull();
+});
+
+test("a small capital-markets payment does not assert a zero NPCI never stated", () => {
+  const v = computeVerdict("shop", "capital", 1_000);
+  expect(v.customerPays).toBe(0);
+  expect(v.receipt.merchantPays).toBe("Not stated");
+  expect(v.receipt.mdrRate).toContain("no floor stated");
+});
+
+test("a large capital-markets payment names the cap on the receipt", () => {
+  const v = computeVerdict("shop", "capital", 20_00_000);
+  expect(v.merchantPays).toBe(MDR_CAP);
+  expect(v.receipt.mdrRate).toContain(inr(MDR_CAP));
+});
+
+test("istDateKey is the IST calendar day, not the UTC one", () => {
+  // 18:40 UTC on the 16th is already past midnight IST on the 17th.
+  expect(istDateKey(new Date("2026-09-16T18:40:00Z"))).toBe("2026-09-17");
+  expect(istDateKey(new Date("2026-09-16T18:20:00Z"))).toBe("2026-09-16");
 });

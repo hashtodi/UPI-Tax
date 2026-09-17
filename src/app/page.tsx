@@ -26,7 +26,7 @@ export default function Home() {
               */
               className="text-balance pl-4 text-[34px] font-semibold leading-[1.05] tracking-tight sm:pl-7 sm:text-[42px] lg:pl-0 lg:text-[52px] xl:text-[62px]"
             >
-              Will you pay the {inr(MDR_THRESHOLD)} UPI tax?
+              Will you pay UPI tax above {inr(MDR_THRESHOLD)}?
             </h1>
 
             <Flow />
@@ -62,9 +62,11 @@ export default function Home() {
             className="group flex min-h-[64px] items-center gap-4 rounded-3xl border border-line bg-surface px-5 py-4 transition-[border-color,transform] hover:border-accent/45 active:scale-[0.995]"
           >
             <span className="flex-1">
-              <span className="block text-[16px] font-medium text-ink">Own a shop?</span>
+              <span className="block text-[16px] font-medium text-ink">
+                Own a shop? (and what your customers end up paying)
+              </span>
               <span className="mt-0.5 block text-[13.5px] leading-snug text-ink-3">
-                Work out what you would actually pay a month, and how it compares to cards.
+                What it costs you a month, and how much of it lands in your prices.
               </span>
             </span>
             <ArrowRightIcon

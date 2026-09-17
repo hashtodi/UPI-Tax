@@ -26,9 +26,12 @@ Details that are easy to get wrong, and that this app gets right:
 
 - **"Above ₹2,000", not "₹2,000 and above."** A payment of exactly ₹2,000 carries
   nothing. FAQ Q35 lists ₹2,000 → ₹0 and ₹3,000 → ₹12.
-- **18% GST rides on top of the MDR.** On a ₹3,000 bill the merchant's real cost
-  is ₹12 + ₹2.16 = ₹14.16. A GST-registered merchant can claim it back as input
-  tax credit; an unregistered one cannot.
+- **18% GST on the MDR is expected, not stated.** NPCI's FAQ never mentions GST.
+  The 18% comes from press reporting, which says MDR "may attract" it, so every
+  surface labels the number *expected* and treats the fee alone as firm. On a
+  ₹3,000 bill that puts the merchant's cost at ₹12 + ₹2.16 = ₹14.16. A
+  GST-registered merchant can claim it back as input tax credit; an
+  unregistered one cannot.
 - **UPI AutoPay mandates are exempt** (FAQ Q22). A mutual fund SIP running on
   AutoPay pays nothing, while the same purchase made one-off does not.
 - **P2PM is "up to" ₹1 lakh a month.** Reclassification to P2M triggers only on
@@ -36,9 +39,30 @@ Details that are easy to get wrong, and that this app gets right:
 - **The flat-₹5 list is open.** NPCI names railways, telecom, insurance and fuel
   "among others", and separately puts electricity, water and piped gas on the
   same flat fee. It is never presented here as a closed list of four.
-- **Capital markets have no stated floor.** FAQ Q37 gives 0.02% capped at ₹300
-  with no ₹2,000 threshold; the threshold applied here follows press reporting
-  and the app says so on the verdict.
+- **The capital markets cap is per transaction; the floor is still unstated.**
+  The announcement reads "0.02%, capped at ₹300 **per transaction**", so the cap
+  only binds above ₹15,00,000 — which is what the app has always computed. What
+  no source states is a ₹2,000 floor for this category, so a smaller payment may
+  still carry the rate, and the app says so instead of asserting a zero.
+- **The merchant model takes the average of the QUALIFYING bills**, not a blended
+  average of all bills. Asking for a blended average made the three inputs
+  over-determined: ₹2,50,000 at a ₹3,500 average with 40% above ₹2,000 implies
+  the rest arrives in bills of ₹3,571 that are also somehow under ₹2,000. Only
+  the bills that carry a fee are modelled, so there is nothing to contradict.
+- **A qualifying bill cannot outgrow the qualifying money, and the count never
+  rounds up.** ₹7,500 arriving in ₹3,000 bills is two bills plus a ₹1,500 tail
+  that is itself below the threshold, not three bills; and a stated ₹75,000
+  average inside ₹7,500 of qualifying value is one ₹7,500 bill. Both would
+  otherwise invent transactions that a flat-fee sector then charges for.
+- **Classification is not the same as paying nothing.** A large merchant whose
+  bills are all under ₹2,000 also pays ₹0, and is not exempt. Every surface
+  branches on P2PM vs P2M, never on whether the fee happens to be zero.
+- **Crossing ₹1 lakh is not instant.** P2M applies after three consecutive
+  months above the line, and the copy says so rather than switching in the
+  present tense.
+- **Share-card URLs carry the IST date.** The countdown is baked into pixels and
+  social proxies cache those bytes on their own schedule, so each day's card is
+  a distinct URL and a link re-shared later cannot unfurl a stale day count.
 - **Merchants may not pass MDR on** (FAQ Q34). No penalty schedule or complaint
   channel has been published, so the app does not claim one.
 - **Credit-linked UPI sits outside this framework** (FAQ Q36). RuPay credit card
@@ -58,7 +82,7 @@ FAQ, the PIB release and the gazette notification, not a circular.
 | --- | --- |
 | `/` | The question and the three taps, sized to fit the first viewport on phone, tablet and laptop. Myth-versus-fact cards below the fold. |
 | `/r/[who]/[kind]/[amt]` | A verdict, for example `/r/shop/big/2800`. Server rendered with its own OG metadata. |
-| `/merchant` | The merchant calculator: P2PM or P2M, monthly MDR, the 18% GST on it, and how the total compares to credit cards. |
+| `/merchant` | The merchant calculator, shareable the same way: `?inflow=&bill=&share=&sector=`. |
 | `/api/card` | The share image. |
 | `/api/count` | The shared counter. |
 
@@ -80,9 +104,14 @@ The tall card is a direct translation of the verdict card on screen, so what
 someone downloads is what they were just looking at. The share buttons sit
 outside that card for the same reason.
 
-Images are a pure function of the query string and are served
-`public, immutable, max-age=31536000`. Nothing is stored; each variant renders
-once and is then served from the CDN.
+Both the consumer verdict and the merchant result render in both formats, from
+the same functions the pages use, so an image can never disagree with the page
+it came from.
+
+Images are **not** cached immutably. The status pill carries a live countdown to
+15 October, so a card is not a pure function of its query string; it is served
+`public, max-age=10800, stale-while-revalidate=3600`. Cached for a year it would
+still read "MDR starts in 28 days" in November.
 
 ## Brand
 
@@ -105,7 +134,7 @@ bundle.
 
 ```bash
 bun install
-bun test        # 18 assertions over the rules table
+bun test        # 34 tests over the rules, the merchant model and the formatters
 bun run dev
 bun run build   # type check and production build
 ```

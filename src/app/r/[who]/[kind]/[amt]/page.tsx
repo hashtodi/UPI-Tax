@@ -2,7 +2,15 @@ import type { Metadata } from "next";
 import { Footer } from "@/components/Footer";
 import { SiteNav } from "@/components/SiteNav";
 import { VerdictScreen } from "@/components/VerdictScreen";
-import { computeVerdict, inr, liveStatus, parseAmount, parseKind, parseWho } from "@/lib/rules";
+import {
+  computeVerdict,
+  inr,
+  istDateKey,
+  liveStatus,
+  parseAmount,
+  parseKind,
+  parseWho,
+} from "@/lib/rules";
 import { cardPath } from "@/lib/share";
 import { SITE_URL } from "@/lib/site";
 
@@ -11,7 +19,9 @@ type Params = Promise<{ who: string; kind: string; amt: string }>;
 function read(params: { who: string; kind: string; amt: string }) {
   const who = parseWho(params.who);
   const kind = parseKind(params.kind, who);
-  const amt = parseAmount(params.amt);
+  // Whole rupees only: the card path rounds, so anything finer would make
+  // the preview disagree with the page it previews.
+  const amt = Math.round(parseAmount(params.amt));
   return { who, kind, amt, verdict: computeVerdict(who, kind, amt) };
 }
 
@@ -20,7 +30,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
   const title = `${inr(amt)} on UPI. You pay ${inr(0)}.`;
   const description = `${verdict.headline} ${verdict.explainer}`;
-  const image = cardPath(who, kind, amt);
+  // Date-stamped so a proxy cannot unfurl a stale countdown. See istDateKey.
+  const image = cardPath(who, kind, amt) + `&d=${istDateKey()}`;
 
   return {
     title,

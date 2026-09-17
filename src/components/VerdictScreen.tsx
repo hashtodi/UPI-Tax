@@ -11,8 +11,8 @@ import {
   ShareNetworkIcon,
   XLogoIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { Tick } from "@/components/Tick";
-import { countIndian, type Verdict } from "@/lib/rules";
+import { VerdictMark } from "@/components/Tick";
+import { countIndian, inr, type Verdict } from "@/lib/rules";
 import { cardPath, resultUrl, shareText, xIntent } from "@/lib/share";
 
 type Platform = "download" | "native" | "x" | "copy";
@@ -121,34 +121,39 @@ export function VerdictScreen({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[560px] px-4 pb-16 pt-4 sm:pt-9">
+    <div className="mx-auto w-full max-w-[560px] px-4 pb-16 pt-3 [@media(min-height:680px)]:pt-4 sm:pt-9">
       {/*
         The parody: a UPI success screen where the amount slot holds zero.
         The share bar lives inside this card on purpose. It is the growth loop,
         so it has to clear the fold on a phone rather than sit under the receipt.
       */}
-      <div className="rounded-3xl border border-line bg-surface p-4 sm:p-7">
+      <div className="rounded-3xl border border-line bg-surface p-3.5 [@media(min-height:680px)]:p-4 sm:p-7">
         <div className="flex flex-col items-center text-center">
-          <Tick />
+          <VerdictMark charged={verdict.passThroughWithGst !== null} />
 
-          <p className="rise mt-3.5 text-[13px] font-medium tracking-wide text-ink-3" style={{ animationDelay: "0.35s" }}>
-            Charges paid by you
+          <p className="rise mt-2.5 text-[13px] font-medium tracking-wide text-ink-3 [@media(min-height:680px)]:mt-3.5" style={{ animationDelay: "0.35s" }}>
+            {verdict.heroLabel}
           </p>
           <p
-            className="rise tnum mt-1 text-[58px] font-extrabold leading-none tracking-tighter text-ink sm:text-[70px]"
+            className="rise tnum mt-1 text-[46px] font-extrabold leading-none tracking-tighter text-ink [@media(min-height:680px)]:text-[58px] sm:text-[70px]"
             style={{ animationDelay: "0.42s" }}
           >
-            &#8377;0
+            {inr(verdict.passThroughWithGst ?? 0)}
           </p>
+          {verdict.passThroughWithGst !== null && (
+            <p className="rise mt-2 text-[13px] text-ink-3" style={{ animationDelay: "0.46s" }}>
+              You pay <span className="tnum font-medium text-ink">{inr(0)}</span>
+            </p>
+          )}
 
           <h1
-            className="rise mt-4 text-balance text-[22px] font-semibold leading-[1.2] tracking-tight sm:text-[26px]"
+            className="rise mt-3.5 text-balance text-[21px] font-semibold leading-[1.2] tracking-tight [@media(min-height:680px)]:text-[22px] sm:text-[26px]"
             style={{ animationDelay: "0.5s" }}
           >
             {verdict.headline}
           </h1>
           <p
-            className="rise mt-2 max-w-[42ch] text-[14px] leading-[1.45] text-ink-2"
+            className="rise mt-2 max-w-[38ch] text-[14px] leading-[1.45] text-ink-2"
             style={{ animationDelay: "0.56s" }}
           >
             {verdict.explainer}
@@ -161,11 +166,15 @@ export function VerdictScreen({
           )}
         </div>
 
-        <div className="rise mt-4 rounded-2xl border border-line-soft bg-surface-2 px-4 py-2.5" style={{ animationDelay: "0.64s" }}>
-          <p className="text-[12.5px] font-medium text-ink-3">Who actually pays</p>
-          <p className="mt-1 text-[15px] font-medium leading-snug text-ink">{verdict.payerLine}</p>
+        {/* Kept in step with the PNG: what you see is what downloads. */}
+        <div className="rise mt-3 rounded-2xl border border-line-soft bg-surface-2 px-4 py-2 [@media(min-height:680px)]:mt-4 [@media(min-height:680px)]:py-2.5" style={{ animationDelay: "0.64s" }}>
+          <p className="text-[12.5px] font-medium text-ink-3">
+            {verdict.passThroughWithGst !== null ? "How that adds up" : "Who actually pays"}
+          </p>
+          <p className="tnum mt-1 text-[15px] font-medium leading-snug text-ink">
+            {verdict.payerLine}
+          </p>
         </div>
-
       </div>
 
       {/* Outside the card on purpose: the card alone is what the PNG shows. */}
@@ -208,11 +217,16 @@ export function VerdictScreen({
           <Row label="MDR rate" value={verdict.receipt.mdrRate} />
           <Row label="Merchant pays" value={verdict.receipt.merchantPays} mono />
           {verdict.receipt.merchantTotal && (
-            <Row label="With 18% GST on the fee" value={verdict.receipt.merchantTotal} mono />
+            <Row label="With expected 18% GST" value={verdict.receipt.merchantTotal} mono />
           )}
           <Row label="You pay" value={verdict.receipt.youPay} mono />
           <Row label="Effective from" value={verdict.receipt.effective} />
         </dl>
+        {verdict.receipt.merchantTotal && (
+          <p className="pt-2 text-[12px] leading-relaxed text-ink-3">
+            NPCI's FAQ does not mention GST on MDR. The 18% follows press reporting.
+          </p>
+        )}
       </section>
 
       {verdict.notes.length > 0 && (

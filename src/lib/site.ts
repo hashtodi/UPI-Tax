@@ -39,7 +39,13 @@ export const SOURCES = [
     href: "https://www.businesstoday.in/personal-finance/news/story/small-merchants-will-not-come-under-upi-mdr-even-above-rs2000-if-they-meet-this-condition-check-details-555727-2026-09-15",
   },
   {
-    label: "Business Standard, 16 September 2026: UPI MDR attracts 18% GST, merchants can claim ITC",
+    label:
+      "Business Today, 16 September 2026: capital markets at 0.02%, capped at \u20B9300 per transaction",
+    href: "https://www.businesstoday.in/markets/stocks/story/upi-mdr-0-02-charge-on-capital-market-payments-what-investors-brokers-need-to-know-555872-2026-09-16",
+  },
+  {
+    label:
+      "Business Standard, 16 September 2026: UPI MDR may attract 18% GST (press reporting, not stated in NPCI's FAQ)",
     href: "https://www.business-standard.com/finance/news/upi-mdr-to-attract-18-gst-registered-biz-can-claim-input-tax-credit-126091601348_1.html",
   },
 ];
@@ -50,10 +56,11 @@ export const MYTHS = [
     fact: "Customers pay ₹0. Always. MDR applies only above ₹2,000, and only to the merchant.",
   },
   {
-    // 18% GST is real, but it lands on the merchant's fee, not on your payment.
+    // NPCI's FAQ never mentions GST on MDR. The 18% is press-reported, so this
+    // card states only what the FAQ itself says.
     myth: "There is 18% GST on your UPI payment above ₹2,000.",
     fact:
-      "Not on your payment. The merchant pays 0.4% MDR and 18% GST on that fee, which a registered merchant can claim back.",
+      "Not on your payment. NPCI's FAQ puts a 0.4% fee on the merchant and says nothing about GST on it.",
   },
   {
     myth: "Your kirana store will now charge you extra.",
