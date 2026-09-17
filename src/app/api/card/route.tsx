@@ -231,7 +231,9 @@ function TallCard({ verdict, status }: { verdict: Verdict; status: string }) {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", fontSize: 22, color: INK_3 }}>
-            {verdict.receipt.amount} to {verdict.shortCategory}
+            {verdict.receipt.merchantTotal
+              ? `${verdict.receipt.amount} to ${verdict.shortCategory}. MDR ${verdict.receipt.merchantPays}, ${verdict.receipt.merchantTotal} with GST.`
+              : `${verdict.receipt.amount} to ${verdict.shortCategory}`}
           </div>
           <div style={{ display: "flex", fontSize: 28, fontWeight: 600, color: ACCENT }}>
             upitax.vercel.app
@@ -266,11 +268,15 @@ function WideCard({
         ["Large merchant pays", `0.4%, capped at ${inr(300)}`],
         ["Live from", "15 Oct 2026"],
       ]
-    : [
+    : ([
         ["Amount", verdict.receipt.amount],
         ["Category", verdict.receipt.category],
-        ["Merchant pays", verdict.receipt.merchantPays],
-      ];
+        ["MDR", verdict.receipt.merchantPays],
+        // Only when a fee actually applies, so zero cases stay uncluttered.
+        verdict.receipt.merchantTotal
+          ? ["With 18% GST", verdict.receipt.merchantTotal]
+          : null,
+      ].filter(Boolean) as [string, string][]);
 
   return (
     <div

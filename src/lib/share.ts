@@ -36,16 +36,16 @@ export function shareText(v: Verdict): string {
       return `Paid ${amount} at a kirana store on UPI. Charge to me: ₹0. Charge to the shop: ₹0. Small merchants are exempt. ${tail}`;
     case "fuel":
       return v.merchantPays > 0
-        ? `Paid ${amount} for fuel on UPI. My charge: ₹0. The company's charge: ${inr(v.merchantPays)} flat. That is the whole "UPI tax". ${tail}`
+        ? `Paid ${amount} for fuel on UPI. My charge: ₹0. Theirs: ${inr(v.merchantPays)} flat plus GST. That is the whole "UPI tax". ${tail}`
         : `Paid ${amount} for fuel on UPI. Charge to me: ₹0. Charge to them: ₹0. MDR only starts above ₹2,000. ${tail}`;
     case "capital":
       return v.merchantPays > 0
-        ? `Invested ${amount} over UPI. My charge: ₹0. My broker's charge: ${inr(v.merchantPays)} at 0.02%. Not 0.4%, and not mine. ${tail}`
+        ? `Invested ${amount} over UPI. My charge: ₹0. My broker's: ${inr(v.merchantPays)} at 0.02% plus GST. Not 0.4%, and not mine. ${tail}`
         : `Invested ${amount} over UPI. Charge to me: ₹0. Charge to my broker: ₹0. MDR only starts above ₹2,000. ${tail}`;
     case "big":
     default:
       return v.merchantPays > 0
-        ? `Paid ${amount} at a store on UPI. My charge: ₹0. Store's charge: ${inr(v.merchantPays)}. That is the whole "UPI tax". ${tail}`
+        ? `Paid ${amount} at a store on UPI. My charge: ₹0. Store's: ${inr(v.merchantPays)} plus 18% GST. That is the whole "UPI tax". ${tail}`
         : `Paid ${amount} at a store on UPI. Charge to me: ₹0. Charge to the store: ₹0. MDR only starts above ₹2,000. ${tail}`;
   }
 }

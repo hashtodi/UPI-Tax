@@ -12,7 +12,7 @@ import {
   XLogoIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { Tick } from "@/components/Tick";
-import type { Verdict } from "@/lib/rules";
+import { countIndian, type Verdict } from "@/lib/rules";
 import { cardPath, resultUrl, shareText, xIntent } from "@/lib/share";
 
 type Platform = "download" | "native" | "x" | "copy";
@@ -189,7 +189,7 @@ export function VerdictScreen({
 
       {count !== null && (
         <p className="tnum mt-4 text-center text-[13px] text-ink-3">
-          {count.toLocaleString("en-IN")} people checked. 100% of them pay &#8377;0.
+          {countIndian(count)} people checked. 100% of them pay &#8377;0.
         </p>
       )}
 

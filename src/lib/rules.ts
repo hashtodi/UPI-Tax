@@ -81,6 +81,20 @@ function groupIndian(digits: string): string {
   return `${rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",")},${last3}`;
 }
 
+/**
+ * Groups a raw digit string for live display in an input, so someone typing
+ * a lakh sees 1,00,000 rather than 100000. State stays raw digits.
+ */
+export function groupDigits(raw: string): string {
+  const digits = String(raw).replace(/\D/g, "");
+  return digits ? groupIndian(digits) : "";
+}
+
+/** Indian grouping for a plain count, with no rupee sign. */
+export function countIndian(value: number): string {
+  return groupIndian(String(Math.round(Math.abs(value))));
+}
+
 /** Formats a rupee figure. Shows paise only when there are paise. */
 export function inr(value: number): string {
   const rounded = Math.round(value * 100) / 100;
@@ -185,7 +199,7 @@ export function computeVerdict(who: Who, kind: Kind, amt: number): Verdict {
         merchantPays = FLAT_SECTOR_MDR;
         headline = `No. The company pays a flat ${inr(FLAT_SECTOR_MDR)}.`;
         explainer = `These sectors have a special ${inr(FLAT_SECTOR_MDR)} flat MDR instead of ${pct(P2M_RATE)}.`;
-        payerLine = `The company pays ${inr(FLAT_SECTOR_MDR)} (flat)`;
+        payerLine = `The company pays ${inr(FLAT_SECTOR_MDR)} flat, or ${inr(FLAT_SECTOR_MDR * (1 + GST_ON_MDR))} once ${pct(GST_ON_MDR)} GST is added`;
         mdrRate = `${inr(FLAT_SECTOR_MDR)} flat above ${inr(MDR_THRESHOLD)}`;
         notes.push(
           "NPCI names railways, telecom, insurance and fuel “among others”, and puts electricity, water and piped gas on the same flat fee. The list is not closed.",
@@ -206,17 +220,20 @@ export function computeVerdict(who: Who, kind: Kind, amt: number): Verdict {
         merchantPays = Math.min(amt * CAPITAL_RATE, MDR_CAP);
         headline = `No. Your broker pays ${inr(merchantPays)}.`;
         explainer = `Capital market payments carry ${pct(CAPITAL_RATE)} MDR, capped at ${inr(MDR_CAP)}. Not your problem.`;
-        payerLine = `Your broker pays ${inr(merchantPays)} (${pct(CAPITAL_RATE)})`;
+        payerLine = `Your broker pays ${inr(merchantPays)}, or ${inr(merchantPays * (1 + GST_ON_MDR))} once ${pct(GST_ON_MDR)} GST is added`;
         mdrRate = `${pct(CAPITAL_RATE)}, capped at ${inr(MDR_CAP)}`;
         notes.push(
           `NPCI's FAQ sets ${pct(CAPITAL_RATE)} capped at ${inr(MDR_CAP)} for capital markets but does not state a ${inr(MDR_THRESHOLD)} floor for this category. The threshold here follows press reporting.`,
           AUTOPAY_NOTE,
         );
       } else {
-        headline = `No. Nobody does. Under ${inr(MDR_THRESHOLD)} is untouched.`;
-        explainer = `MDR only applies above ${inr(MDR_THRESHOLD)}, and only to the merchant.`;
-        payerLine = `Nobody. ${inr(MDR_THRESHOLD)} and under carries no MDR.`;
+        headline = "No. Whatever your broker pays, it is not you.";
+        explainer = `Capital market payments carry ${pct(CAPITAL_RATE)} MDR, capped at ${inr(MDR_CAP)}, and it sits with the broker either way.`;
+        payerLine = "Your broker, if anything. Never you.";
         mdrRate = `${pct(CAPITAL_RATE)}, capped at ${inr(MDR_CAP)}`;
+        notes.push(
+          `NPCI's FAQ does not state a ${inr(MDR_THRESHOLD)} floor for capital markets, so a payment this small may still carry ${pct(CAPITAL_RATE)}. Either way the broker pays it, not you.`,
+        );
       }
       break;
 
@@ -228,7 +245,7 @@ export function computeVerdict(who: Who, kind: Kind, amt: number): Verdict {
         merchantPays = Math.min(amt * P2M_RATE, MDR_CAP);
         headline = `No. The store pays ${inr(merchantPays)}. You pay the price on the tag.`;
         explainer = `${pct(P2M_RATE)} MDR, capped at ${inr(MDR_CAP)}, charged to the merchant by their bank. They are not allowed to add it to your bill.`;
-        payerLine = `The store pays ${inr(merchantPays)} (${pct(P2M_RATE)})`;
+        payerLine = `The store pays ${inr(merchantPays)}, or ${inr(merchantPays * (1 + GST_ON_MDR))} once ${pct(GST_ON_MDR)} GST is added`;
         mdrRate = `${pct(P2M_RATE)}, capped at ${inr(MDR_CAP)}`;
         notes.push(AUTOPAY_NOTE);
       } else {
@@ -305,40 +322,102 @@ export type MerchantOutlook = {
   statusLabel: string;
   /** Months of sustained inflow before reclassification, null once already P2M. */
   monthsToReclassification: number | null;
-  /** Bills in a month that actually attract MDR. */
-  chargeableBills: number;
+  /** Estimated bills in a month, at the stated average size. */
+  billsPerMonth: number;
+  /** The rupee value flowing through bills above the threshold. */
+  qualifyingValue: number;
+  /** Roughly how many bills that value is spread across. */
+  qualifyingBills: number;
+  /** The average size assumed for a qualifying bill. */
+  qualifyingBillSize: number;
   monthlyMdr: number;
   /** 18% GST charged on the MDR itself. */
   monthlyGst: number;
   /** What actually leaves the account: MDR plus GST. */
   monthlyTotal: number;
   cardsMonthlyCost: number;
+  /** Room left under the P2PM line, in rupees. Zero once over it. */
+  headroom: number;
+  /** Inflow as a share of the P2PM line, clamped to 1 for the meter. */
+  inflowRatio: number;
+  /** What staying on UPI saves against credit cards, GST included on both. */
+  savingVsCards: number;
+  /** How many times more credit cards would cost. Null when UPI costs nothing. */
+  cardsMultiple: number | null;
   note: string;
 };
 
-/** Typical card MDR a merchant of this size would otherwise be paying. */
+/**
+ * Indicative credit card MDR, for comparison only. RuPay debit carries zero
+ * MDR, so this is deliberately not presented as "cards" in general.
+ */
 export const CARD_MDR_RATE = 0.015;
 
 export function merchantOutlook(
   monthlyInflow: number,
   avgBill: number,
   kind: Exclude<Kind, "na">,
+  /**
+   * Share of monthly inflow that arrives through bills above the threshold,
+   * as a fraction. This is the only thing that actually drives MDR, and no
+   * average bill size can imply it, so the caller supplies it.
+   */
+  shareAboveThreshold: number,
 ): MerchantOutlook {
   const inflow = Math.max(0, monthlyInflow);
   const bill = Math.max(0, avgBill);
+  const share = Math.min(1, Math.max(0, shareAboveThreshold));
+
   // Up to the limit is still P2PM. Only MORE than it starts the 3-month clock.
   const isSmall = inflow <= P2PM_MONTHLY_LIMIT;
-  const billCount = bill > 0 ? Math.floor(inflow / bill) : 0;
-  const chargeableBills = bill > MDR_THRESHOLD ? billCount : 0;
 
-  const perBill = isSmall
-    ? 0
-    : computeVerdict("shop", kind, bill).merchantPays;
+  const billsPerMonth = bill > 0 ? Math.floor(inflow / bill) : 0;
+  const qualifyingValue = inflow * share;
 
-  const monthlyMdr = isSmall ? 0 : perBill * billCount;
+  /*
+   * A qualifying bill is above the threshold by definition, so its average
+   * cannot be below it. Where the stated average is smaller, the threshold
+   * itself is the floor.
+   */
+  const qualifyingBillSize = Math.max(bill, MDR_THRESHOLD + 1);
+  const qualifyingBills =
+    qualifyingValue > 0 ? Math.round(qualifyingValue / qualifyingBillSize) : 0;
+
+  /*
+   * A percentage rate applies to the qualifying VALUE, so it is computed on the
+   * value directly. Multiplying a rounded bill count by a per-bill fee would
+   * drag the answer off by a percent or two. The count is only used where it
+   * genuinely drives the fee: a flat per-transaction charge, or a capped rate.
+   */
+  const perBillVerdict = computeVerdict("shop", kind, qualifyingBillSize);
+  const capBinds =
+    perBillVerdict.rate !== null &&
+    perBillVerdict.cap !== null &&
+    perBillVerdict.rate * qualifyingBillSize >= perBillVerdict.cap;
+
+  let monthlyMdr: number;
+  if (isSmall || qualifyingValue <= 0) {
+    monthlyMdr = 0;
+  } else if (perBillVerdict.rate === null) {
+    // Flat fee per qualifying transaction.
+    monthlyMdr = perBillVerdict.merchantPays * qualifyingBills;
+  } else if (capBinds) {
+    monthlyMdr = (perBillVerdict.cap as number) * qualifyingBills;
+  } else {
+    monthlyMdr = perBillVerdict.rate * qualifyingValue;
+  }
   const monthlyGst = monthlyMdr * GST_ON_MDR;
   const monthlyTotal = monthlyMdr + monthlyGst;
-  const cardsMonthlyCost = inflow * CARD_MDR_RATE;
+  const cardsMonthlyCost = inflow * CARD_MDR_RATE * (1 + GST_ON_MDR);
+
+  let note: string;
+  if (isSmall) {
+    note = `You pay nothing. Reclassification only happens after ${RECLASSIFY_MONTHS} consecutive months of MORE than ${inr(P2PM_MONTHLY_LIMIT)} inward UPI.`;
+  } else if (share <= 0) {
+    note = `You are P2M, but nothing arrives through bills above ${inr(MDR_THRESHOLD)}, so no MDR applies. It starts only on the money that does.`;
+  } else {
+    note = `MDR carries ${pct(GST_ON_MDR)} GST on top. A GST-registered merchant can claim that back as input tax credit, so the real cost is closer to the MDR alone.`;
+  }
 
   return {
     status: isSmall ? "P2PM" : "P2M",
@@ -346,13 +425,18 @@ export function merchantOutlook(
       ? `Small merchant (P2PM). Within the ${inr(P2PM_MONTHLY_LIMIT)} a month line.`
       : `Large merchant (P2M). Over the ${inr(P2PM_MONTHLY_LIMIT)} a month line.`,
     monthsToReclassification: isSmall ? null : RECLASSIFY_MONTHS,
-    chargeableBills,
+    billsPerMonth,
+    qualifyingValue,
+    qualifyingBills,
+    qualifyingBillSize,
     monthlyMdr,
     monthlyGst,
     monthlyTotal,
     cardsMonthlyCost,
-    note: isSmall
-      ? `You pay nothing. Reclassification only happens after ${RECLASSIFY_MONTHS} consecutive months of MORE than ${inr(P2PM_MONTHLY_LIMIT)} inward UPI.`
-      : `MDR carries ${pct(GST_ON_MDR)} GST on top, which a GST-registered merchant can claim back as input tax credit. On cards at roughly ${pct(CARD_MDR_RATE)} the same volume would cost about ${inr(cardsMonthlyCost)} a month.`,
+    headroom: Math.max(0, P2PM_MONTHLY_LIMIT - inflow),
+    inflowRatio: P2PM_MONTHLY_LIMIT > 0 ? Math.min(1, inflow / P2PM_MONTHLY_LIMIT) : 0,
+    savingVsCards: Math.max(0, cardsMonthlyCost - monthlyTotal),
+    cardsMultiple: monthlyTotal > 0 ? cardsMonthlyCost / monthlyTotal : null,
+    note,
   };
 }

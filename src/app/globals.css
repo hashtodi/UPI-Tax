@@ -112,6 +112,25 @@ body {
     }
   }
 
+  @keyframes nudge {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(3px);
+    }
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* The arrow on the scroll cue, drifting down and back. */
+  .nudge {
+    animation: nudge 1.7s ease-in-out infinite;
+  }
+
   /* Entry reveal. Sequenced so the verdict reads top to bottom. */
   .rise {
     animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -139,5 +158,75 @@ body {
   }
   .tick-halo {
     display: none;
+  }
+}
+
+/*
+  Range inputs. The native control is unstyleable on a dark surface, so the
+  track and thumb are drawn here. The element stays 44px tall for the touch
+  target while the visible track is 6px.
+*/
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -9px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  border: 3px solid var(--color-bg);
+  transition: transform 0.12s ease;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  border: 3px solid var(--color-bg);
+  transition: transform 0.12s ease;
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+input[type="range"]:active::-moz-range-thumb {
+  transform: scale(1.15);
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgb(62 207 142 / 0.3);
+}
+input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px rgb(62 207 142 / 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input[type="range"]::-webkit-slider-thumb,
+  input[type="range"]::-moz-range-thumb {
+    transition: none;
   }
 }

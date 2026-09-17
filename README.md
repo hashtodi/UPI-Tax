@@ -58,7 +58,7 @@ FAQ, the PIB release and the gazette notification, not a circular.
 | --- | --- |
 | `/` | The question and the three taps, sized to fit the first viewport on phone, tablet and laptop. Myth-versus-fact cards below the fold. |
 | `/r/[who]/[kind]/[amt]` | A verdict, for example `/r/shop/big/2800`. Server rendered with its own OG metadata. |
-| `/merchant` | The merchant calculator: P2PM or P2M, monthly MDR, and how it compares to cards. |
+| `/merchant` | The merchant calculator: P2PM or P2M, monthly MDR, the 18% GST on it, and how the total compares to credit cards. |
 | `/api/card` | The share image. |
 | `/api/count` | The shared counter. |
 
@@ -105,10 +105,16 @@ bundle.
 
 ```bash
 bun install
-bun test        # the rules table, including the ₹2,000 boundary and the ₹300 cap
+bun test        # 18 assertions over the rules table
 bun run dev
 bun run build   # type check and production build
 ```
+
+The tests pin the things that are easy to break: the ₹2,000 boundary in both
+directions, the ₹300 cap binding at ₹75,000 for P2M and at ₹15,00,000 for
+capital markets, the ₹1 lakh P2PM boundary being inclusive, the 18% GST
+arithmetic, the FAQ Q35 worked examples (₹3,000 → ₹12, ₹50,000 → ₹200), and that
+the customer pays ₹0 in every branch.
 
 ## Environment
 
@@ -153,8 +159,26 @@ bun run build
 
 ## Sources
 
-NPCI UPI MDR FAQs (September 2026); Business Standard, 16 Sept 2026, "No
-question of rethinking 0.4% UPI MDR above ₹2,000"; Business Today, 15 Sept 2026,
-small merchants exempt.
+Primary:
 
-Based on NPCI's UPI MDR FAQ, September 2026. Made for clarity, not legal advice.
+- NPCI, *Merchant Discount Rate (MDR) on Select UPI (P2M) Transactions —
+  Frequently Asked Questions*, 15 September 2026 (42 questions). This is the
+  instrument every number here comes from.
+- Ministry of Finance / PIB, 15 September 2026, PRID 2310586, *UPI continues to
+  remain free for peer to peer transactions and 96% of merchant transactions*.
+- Gazette Notification S.O. 5067(E), 14 September 2026, Department of Financial
+  Services, under Section 10A of the Payment and Settlement Systems Act, 2007.
+  The S.O. number is secondary-sourced and has not been verified against the
+  gazette itself, which is why the app does not cite it.
+
+Secondary:
+
+- Business Standard, 16 September 2026, "No question of rethinking 0.4% UPI MDR
+  above ₹2,000".
+- Business Standard, 16 September 2026, on the 18% GST and input tax credit.
+- Business Today, 15 September 2026, on small merchants staying exempt.
+
+The live links are in `SOURCES` in `src/lib/site.ts`.
+
+Based on NPCI's UPI MDR FAQ, 15 September 2026. Made for clarity, not legal
+advice.

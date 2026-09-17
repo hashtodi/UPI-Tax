@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import {
   computeVerdict,
+  countIndian,
+  groupDigits,
   daysUntilEffective,
   inr,
   liveStatus,
@@ -88,12 +90,12 @@ test("bad URL segments fall back instead of throwing", () => {
 });
 
 test("merchant outlook separates small shops from large ones", () => {
-  const small = merchantOutlook(60_000, 800, "big");
+  const small = merchantOutlook(60_000, 800, "big", 0.5);
   expect(small.status).toBe("P2PM");
   expect(small.monthlyMdr).toBe(0);
   expect(small.monthsToReclassification).toBeNull();
 
-  const large = merchantOutlook(4_00_000, 2_500, "big");
+  const large = merchantOutlook(4_00_000, 2_500, "big", 0.5);
   expect(large.status).toBe("P2M");
   expect(large.monthlyMdr).toBeGreaterThan(0);
   expect(large.cardsMonthlyCost).toBeGreaterThan(large.monthlyMdr);
@@ -112,9 +114,9 @@ test("the capital markets cap binds at 15 lakh, not at 75,000", () => {
 
 test("a merchant at exactly 1 lakh a month is still P2PM", () => {
   // The FAQ reclassifies on MORE than 1 lakh, so the boundary itself is exempt.
-  expect(merchantOutlook(1_00_000, 3_000, "big").status).toBe("P2PM");
-  expect(merchantOutlook(1_00_000, 3_000, "big").monthlyMdr).toBe(0);
-  expect(merchantOutlook(1_00_001, 3_000, "big").status).toBe("P2M");
+  expect(merchantOutlook(1_00_000, 3_000, "big", 0.5).status).toBe("P2PM");
+  expect(merchantOutlook(1_00_000, 3_000, "big", 0.5).monthlyMdr).toBe(0);
+  expect(merchantOutlook(1_00_001, 3_000, "big", 0.5).status).toBe("P2M");
 });
 
 test("18% GST rides on top of the MDR", () => {
@@ -123,7 +125,7 @@ test("18% GST rides on top of the MDR", () => {
   // 12 + 18% = 14.16, the figure the NPCI-aligned reporting gives.
   expect(v.receipt.merchantTotal).toBe("₹14.16");
 
-  const out = merchantOutlook(4_00_000, 3_000, "big");
+  const out = merchantOutlook(4_00_000, 3_000, "big", 0.5);
   expect(out.monthlyGst).toBeCloseTo(out.monthlyMdr * 0.18, 6);
   expect(out.monthlyTotal).toBeCloseTo(out.monthlyMdr * 1.18, 6);
 });
@@ -150,4 +152,83 @@ test("the 3,000 rupee example matches the NPCI FAQ table", () => {
   expect(computeVerdict("shop", "big", 3_000).merchantPays).toBeCloseTo(12, 6);
   expect(computeVerdict("shop", "big", 50_000).merchantPays).toBeCloseTo(200, 6);
   expect(computeVerdict("shop", "big", 75_000).merchantPays).toBe(300);
+});
+
+test("merchant outlook derives the meter and comparison values", () => {
+  const small = merchantOutlook(60_000, 800, "big", 0.5);
+  expect(small.headroom).toBe(40_000);
+  expect(small.inflowRatio).toBeCloseTo(0.6, 6);
+  // Nothing to divide by when UPI is free, so no multiple is offered.
+  expect(small.cardsMultiple).toBeNull();
+  expect(small.savingVsCards).toBeCloseTo(small.cardsMonthlyCost, 6);
+
+  const large = merchantOutlook(4_00_000, 3_000, "big", 0.5);
+  expect(large.headroom).toBe(0);
+  expect(large.inflowRatio).toBe(1);
+  expect(large.cardsMultiple).toBeGreaterThan(1);
+  expect(large.savingVsCards).toBeCloseTo(large.cardsMonthlyCost - large.monthlyTotal, 6);
+});
+
+test("MDR follows the share above the threshold, not the average bill", () => {
+  // Same inflow and same average bill, different mix of bill sizes.
+  const none = merchantOutlook(4_00_000, 2_500, "big", 0);
+  const half = merchantOutlook(4_00_000, 2_500, "big", 0.5);
+  const all = merchantOutlook(4_00_000, 2_500, "big", 1);
+
+  expect(none.monthlyMdr).toBe(0);
+  expect(half.monthlyMdr).toBeGreaterThan(0);
+  // 0.4% of the qualifying money, so doubling the share doubles the fee.
+  expect(all.monthlyMdr).toBeCloseTo(half.monthlyMdr * 2, 4);
+  expect(all.monthlyMdr).toBeCloseTo(4_00_000 * 0.004, 0);
+});
+
+test("qualifying bills cannot average below the threshold", () => {
+  // A 350 rupee average shop still has SOME large bills; those large bills
+  // cannot themselves average 350.
+  const o = merchantOutlook(4_00_000, 350, "big", 0.2);
+  expect(o.qualifyingBillSize).toBeGreaterThan(2_000);
+  expect(o.qualifyingValue).toBeCloseTo(80_000, 6);
+});
+
+test("the per-transaction cap still binds on very large bills", () => {
+  // 1,00,000 a bill: 0.4% would be 400, so the 300 cap takes over.
+  const o = merchantOutlook(10_00_000, 1_00_000, "big", 1);
+  expect(o.qualifyingBills).toBe(10);
+  expect(o.monthlyMdr).toBe(3_000);
+});
+
+test("a percentage rate applies to the qualifying value exactly", () => {
+  // 40% of 2,50,000 is 1,00,000 qualifying, and 0.4% of that is exactly 400.
+  const o = merchantOutlook(2_50_000, 3_500, "big", 0.4);
+  expect(o.qualifyingValue).toBeCloseTo(1_00_000, 6);
+  expect(o.monthlyMdr).toBeCloseTo(400, 6);
+
+  // Capital markets on the same money: 0.02% of 1,00,000 is 20.
+  const c = merchantOutlook(2_50_000, 3_500, "capital", 0.4);
+  expect(c.monthlyMdr).toBeCloseTo(20, 6);
+});
+
+test("flat-fee sectors are charged per qualifying transaction", () => {
+  // 1,00,000 of qualifying money at 5,000 a bill is 20 bills at 5 rupees each.
+  const o = merchantOutlook(2_50_000, 5_000, "fuel", 0.4);
+  expect(o.qualifyingBills).toBe(20);
+  expect(o.monthlyMdr).toBe(100);
+});
+
+test("live input grouping follows the Indian system", () => {
+  expect(groupDigits("")).toBe("");
+  expect(groupDigits("5")).toBe("5");
+  expect(groupDigits("500")).toBe("500");
+  expect(groupDigits("2800")).toBe("2,800");
+  expect(groupDigits("250000")).toBe("2,50,000");
+  expect(groupDigits("1500000")).toBe("15,00,000");
+  expect(groupDigits("12345678")).toBe("1,23,45,678");
+  // Re-grouping already-grouped text must be stable, since the field round-trips.
+  expect(groupDigits("2,50,000")).toBe("2,50,000");
+});
+
+test("counts group without a rupee sign", () => {
+  expect(countIndian(71)).toBe("71");
+  expect(countIndian(12_431)).toBe("12,431");
+  expect(countIndian(2_50_000)).toBe("2,50,000");
 });

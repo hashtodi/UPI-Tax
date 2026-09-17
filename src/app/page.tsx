@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRightIcon, CaretDownIcon } from "@phosphor-icons/react/dist/ssr";
 import { Flow } from "@/components/Flow";
 import { Footer } from "@/components/Footer";
 import { MythStrip } from "@/components/MythStrip";
@@ -16,15 +16,40 @@ export default function Home() {
       <div className="flex min-h-[100dvh] flex-col">
         <SiteNav />
 
-        <section className="flex flex-1 items-center px-4 py-6 sm:py-8">
-          <div className="mx-auto grid w-full max-w-[1080px] items-center gap-7 lg:grid-cols-[1fr_minmax(0,420px)] lg:gap-16">
-            <h1 className="text-balance text-[34px] font-semibold leading-[1.05] tracking-tight sm:text-[42px] lg:text-[52px] xl:text-[62px]">
+        <section className="flex flex-1 items-center px-4 py-4 sm:py-8">
+          <div className="mx-auto grid w-full max-w-[1080px] items-center gap-7 [@media(min-height:720px)]:-translate-y-[4vh] [@media(min-height:880px)]:-translate-y-[6vh] lg:grid-cols-[1fr_minmax(0,420px)] lg:gap-16">
+            <h1
+              /*
+                Stacked, the eye aligns this to the card's TEXT, not its border,
+                so it is inset by the card's own padding. Side by side the card
+                is a separate column and the inset would be wrong.
+              */
+              className="text-balance pl-4 text-[34px] font-semibold leading-[1.05] tracking-tight sm:pl-7 sm:text-[42px] lg:pl-0 lg:text-[52px] xl:text-[62px]"
+            >
               Will you pay the {inr(MDR_THRESHOLD)} UPI tax?
             </h1>
 
             <Flow />
           </div>
         </section>
+
+        {/*
+          Names its destination and actually navigates there, so it is a jump
+          link rather than a decorative "Scroll" label.
+        */}
+        <div className="flex justify-center px-4 pb-4">
+          <a
+            href="#facts"
+            className="group flex min-h-[44px] items-center gap-2 rounded-full border border-line bg-surface px-4 text-[13.5px] font-medium text-ink-2 transition-[border-color,color] hover:border-accent/40 hover:text-ink"
+          >
+            Read more
+            <CaretDownIcon
+              size={14}
+              weight="bold"
+              className="nudge text-ink-3 transition-colors group-hover:text-accent"
+            />
+          </a>
+        </div>
       </div>
 
       <MythStrip />

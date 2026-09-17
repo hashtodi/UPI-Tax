@@ -37,7 +37,7 @@ export function MythStrip() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-[880px] px-4 py-16 sm:py-24">
+    <section id="facts" className="mx-auto w-full max-w-[880px] scroll-mt-[60px] px-4 py-16 sm:py-24">
       <h2 className="max-w-[18ch] text-[26px] font-semibold leading-[1.2] tracking-tight sm:text-[34px]">
         Four things people are getting wrong
       </h2>

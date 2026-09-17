@@ -1,8 +1,8 @@
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://upitax.vercel.app";
 
-export const X_HANDLE = "@harshtodi";
-export const X_URL = "https://x.com/harshtodi";
+export const X_HANDLE = "@hashtodi";
+export const X_URL = "https://x.com/hashtodi";
 export const AUTHOR = "Harsh Todi";
 
 /** Bump this whenever the rules are re-checked against the primary sources. */

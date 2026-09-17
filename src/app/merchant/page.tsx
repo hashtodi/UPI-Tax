@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Footer } from "@/components/Footer";
 import { MerchantCalc } from "@/components/MerchantCalc";
 import { SiteNav } from "@/components/SiteNav";
-import { inr, MDR_THRESHOLD, P2PM_MONTHLY_LIMIT } from "@/lib/rules";
 
 export const metadata: Metadata = {
   title: "Own a shop? Here is your side of the UPI MDR",
@@ -30,17 +29,17 @@ export default function MerchantPage() {
     <main className="min-h-[100dvh]">
       <SiteNav />
 
-      <section className="mx-auto w-full max-w-[880px] px-4 pb-16 pt-10 sm:pt-14">
-        <h1 className="max-w-[20ch] text-[30px] font-semibold leading-[1.12] tracking-tight sm:text-[40px]">
+      <section className="mx-auto w-full max-w-[1000px] px-4 pb-16 pt-7 sm:pt-9">
+        {/* Kept deliberately short: the calculator is the page, not the preamble. */}
+        <h1 className="max-w-[22ch] text-[26px] font-semibold leading-[1.12] tracking-tight sm:text-[32px]">
           Own a shop? Here is your side of it.
         </h1>
-        <p className="mt-4 max-w-[54ch] text-[15.5px] leading-relaxed text-ink-2">
-          MDR lands on the merchant, so this is the only calculation that actually changes a number
-          for someone. Under {inr(P2PM_MONTHLY_LIMIT)} of UPI a month you pay nothing at all, and
-          bills of {inr(MDR_THRESHOLD)} or less never attract it.
+        <p className="mt-2.5 max-w-[60ch] text-[14.5px] leading-relaxed text-ink-2">
+          MDR lands on the merchant, so this is the only calculation that changes a number for
+          anyone.
         </p>
 
-        <div className="mt-9">
+        <div className="mt-6">
           <MerchantCalc />
         </div>
       </section>

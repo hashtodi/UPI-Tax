@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
-import { inr, parseAmount, type Kind, type Who } from "@/lib/rules";
+import { groupDigits, inr, parseAmount, type Kind, type Who } from "@/lib/rules";
 import { resultPath } from "@/lib/share";
 
 const KINDS: { value: Kind; label: string; hint: string }[] = [
@@ -57,8 +57,8 @@ export function Flow() {
   }
 
   return (
-    <div className="rounded-3xl border border-line bg-surface p-5 sm:p-7">
-      <div className="mb-6 flex items-center gap-3">
+    <div className="rounded-3xl border border-line bg-surface p-4 sm:p-7">
+      <div className="mb-5 flex items-center gap-3">
         {step > 0 ? (
           <button
             type="button"
@@ -86,7 +86,7 @@ export function Flow() {
       {step === 0 && (
         <div className="rise">
           <h2 className="text-[19px] font-semibold tracking-tight">Who are you paying?</h2>
-          <div className="mt-4 grid gap-3">
+          <div className="mt-3.5 grid gap-2.5">
             <OptionButton label="A person" hint="Friend, family, landlord, yourself" onClick={() => pickWho("person")} />
             <OptionButton label="A shop or business" hint="Anyone with a storefront or an app" onClick={() => pickWho("shop")} />
           </div>
@@ -96,7 +96,7 @@ export function Flow() {
       {step === 1 && (
         <div className="rise">
           <h2 className="text-[19px] font-semibold tracking-tight">What kind?</h2>
-          <div className="mt-4 grid gap-3">
+          <div className="mt-3.5 grid gap-2.5">
             {KINDS.map((k) => (
               <OptionButton key={k.value} label={k.label} hint={k.hint} onClick={() => pickKind(k.value)} />
             ))}
@@ -115,8 +115,8 @@ export function Flow() {
             <span className="text-3xl font-semibold text-ink-3">&#8377;</span>
             <input
               id="amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, "").slice(0, 8))}
+              value={groupDigits(amount)}
+              onChange={(e) => setAmount(e.target.value.replace(/\D/g, "").slice(0, 8))}
               onKeyDown={(e) => e.key === "Enter" && submit()}
               inputMode="numeric"
               autoComplete="off"
@@ -167,7 +167,7 @@ function OptionButton({
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-[64px] w-full items-center gap-3 rounded-2xl border border-line bg-surface-2 px-4 py-3 text-left transition-[border-color,transform] hover:border-accent/45 active:scale-[0.99]"
+      className="group flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-line bg-surface-2 px-4 py-2.5 text-left transition-[border-color,transform] hover:border-accent/45 active:scale-[0.99]"
     >
       <span className="flex-1">
         <span className="block text-[15px] font-medium text-ink">{label}</span>
