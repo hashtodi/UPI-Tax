@@ -1,0 +1,8 @@
+/**
+ * The rupee outline taken from Geist ExtraBold and flattened to a vector, so
+ * the mark is identical in the nav, the favicon and the share card, and never
+ * waits on a webfont to load.
+ * Drawn for a 0 0 100 100 viewBox.
+ */
+export const RUPEE_PATH =
+  "M46.24 80 24.44 59.8V49.07H44.72Q47.93 49.07 50.08 48.14Q52.24 47.21 53.3 45.27Q54.35 43.32 54.35 40.37Q54.35 37.49 53.3 35.63Q52.24 33.77 50.08 32.8Q47.93 31.83 44.72 31.83H24.44V20.76H45.65Q52.75 20.76 58.07 23Q63.39 25.24 66.39 29.55Q69.39 33.86 69.39 40.03Q69.39 46.11 66.48 50.46Q63.56 54.82 58.24 57.14Q52.92 59.46 45.65 59.46H41.76L64.58 80ZM24.44 44.08V36.99H75.56V44.08ZM24.44 27.01V20H75.56V27.01Z";

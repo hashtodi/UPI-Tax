@@ -1,26 +1,143 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  UPI Tax? design tokens.
+  Theme is locked dark. OLED black base, layered surfaces for depth,
+  one accent (UPI success green) used across the whole page.
+  Radius rule: cards 24px, controls 16px, pills full.
+*/
+@theme {
+  --color-bg: #000000;
+  --color-surface: #0b0c0e;
+  --color-surface-2: #131418;
+  --color-line: #232429;
+  --color-line-soft: #1a1b1f;
+
+  --color-ink: #f2f2f3;
+  --color-ink-2: #a2a2a9;
+  --color-ink-3: #6a6a72;
+
+  --color-accent: #3ecf8e;
+  --color-accent-deep: #1f9c68;
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-control: 1rem;
+  --radius-card: 1.5rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
+  background: var(--color-bg);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Numbers are data. Keep them from dancing as they change. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Focus ring, one definition for the whole page. */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/*
+  Every text field sits inside a wrapper that owns the focus treatment, so the
+  field itself must not draw a second ring on top of it.
+*/
+:where(input, select, textarea):focus,
+:where(input, select, textarea):focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pop {
+    0% {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.06);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes halo {
+    0% {
+      transform: scale(0.8);
+      opacity: 0.55;
+    }
+    70% {
+      transform: scale(1.7);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1.7);
+      opacity: 0;
+    }
+  }
+
+  /* Entry reveal. Sequenced so the verdict reads top to bottom. */
+  .rise {
+    animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .tick-ring {
+    animation: pop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .tick-halo {
+    animation: halo 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+  }
+
+  .tick-path {
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: draw 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.28s both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tick-path {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+  .tick-halo {
+    display: none;
+  }
 }
