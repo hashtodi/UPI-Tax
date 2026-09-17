@@ -69,7 +69,7 @@ export default async function MerchantPage({ searchParams }: { searchParams: Sea
 
   return (
     <main className="min-h-[100dvh]">
-      <SiteNav />
+      <SiteNav counts />
 
       <section className="mx-auto w-full max-w-[1000px] px-4 pb-16 pt-7 sm:pt-9">
         <h1 className="max-w-[24ch] text-[26px] font-semibold leading-[1.12] tracking-tight sm:text-[32px]">

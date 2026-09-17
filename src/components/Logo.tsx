@@ -5,7 +5,14 @@ import { RUPEE_PATH } from "@/lib/mark";
  * a text glyph in a box, so it stays crisp at any size and matches the favicon
  * and the share card exactly.
  */
-export function Logo({ withWordmark = true }: { withWordmark?: boolean }) {
+export function Logo({
+  withWordmark = true,
+  wordmarkClassName = "",
+}: {
+  withWordmark?: boolean;
+  /** Lets the nav stand the wordmark down on narrow screens. */
+  wordmarkClassName?: string;
+}) {
   return (
     <span className="flex items-center gap-2.5">
       <svg
@@ -19,7 +26,11 @@ export function Logo({ withWordmark = true }: { withWordmark?: boolean }) {
         <path d={RUPEE_PATH} fill="#000000" />
       </svg>
       {withWordmark && (
-        <span className="text-[15.5px] font-semibold tracking-tight text-ink">UPI Tax?</span>
+        <span
+          className={`text-[15.5px] font-semibold tracking-tight text-ink ${wordmarkClassName}`}
+        >
+          UPI Tax?
+        </span>
       )}
     </span>
   );

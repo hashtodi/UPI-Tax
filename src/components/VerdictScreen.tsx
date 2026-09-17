@@ -12,7 +12,7 @@ import {
   XLogoIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { VerdictMark } from "@/components/Tick";
-import { countIndian, inr, type Verdict } from "@/lib/rules";
+import { inr, type Verdict } from "@/lib/rules";
 import { cardPath, resultUrl, shareText, xIntent } from "@/lib/share";
 
 type Platform = "download" | "native" | "x" | "copy";
@@ -21,35 +21,24 @@ export function VerdictScreen({
   verdict,
   statusLabel,
   isLive,
-  initialCount = null,
 }: {
   verdict: Verdict;
   statusLabel: string;
   isLive: boolean;
-  initialCount?: number | null;
 }) {
-  const [count, setCount] = useState<number | null>(initialCount);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<Platform | null>(null);
-  const counted = useRef(false);
+  const tracked = useRef(false);
 
   const url = resultUrl(verdict.who, verdict.kind, verdict.amt);
   const card = cardPath(verdict.who, verdict.kind, verdict.amt, "tall");
   const text = shareText(verdict);
 
   useEffect(() => {
-    if (counted.current) return;
-    counted.current = true;
+    if (tracked.current) return;
+    tracked.current = true;
 
     track("verdict", { who: verdict.who, kind: verdict.kind });
-
-    // The counter is decoration. It must never hold up the verdict.
-    fetch("/api/count", { method: "POST" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (typeof d?.total === "number") setCount(d.total);
-      })
-      .catch(() => {});
   }, [verdict.who, verdict.kind]);
 
   async function fetchCard(): Promise<Blob | null> {
@@ -195,12 +184,6 @@ export function VerdictScreen({
           {copied ? "Copied" : "Copy link"}
         </ShareButton>
       </div>
-
-      {count !== null && (
-        <p className="tnum mt-4 text-center text-[13px] text-ink-3">
-          {countIndian(count)} people checked. 100% of them pay &#8377;0.
-        </p>
-      )}
 
       {!isLive && (
         <p className="mt-4 text-center text-[12.5px] text-ink-3">

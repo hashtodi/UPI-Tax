@@ -12,7 +12,6 @@ import {
   parseWho,
 } from "@/lib/rules";
 import { cardPath } from "@/lib/share";
-import { SITE_URL } from "@/lib/site";
 
 type Params = Promise<{ who: string; kind: string; amt: string }>;
 
@@ -53,35 +52,14 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   };
 }
 
-/**
- * Cached read of the shared counter. Decoration only, so any failure here
- * simply hides the line rather than breaking the verdict.
- */
-async function readCount(): Promise<number | null> {
-  try {
-    const res = await fetch(`${SITE_URL}/api/count`, { next: { revalidate: 10 } });
-    if (!res.ok || res.status === 204) return null;
-    const data = await res.json();
-    return typeof data?.total === "number" ? data.total : null;
-  } catch {
-    return null;
-  }
-}
-
 export default async function ResultPage({ params }: { params: Params }) {
   const { verdict } = read(await params);
   const status = liveStatus();
-  const initialCount = await readCount();
 
   return (
     <main className="min-h-[100dvh]">
-      <SiteNav />
-      <VerdictScreen
-        verdict={verdict}
-        statusLabel={status.label}
-        isLive={status.live}
-        initialCount={initialCount}
-      />
+      <SiteNav counts />
+      <VerdictScreen verdict={verdict} statusLabel={status.label} isLive={status.live} />
       <Footer />
     </main>
   );
